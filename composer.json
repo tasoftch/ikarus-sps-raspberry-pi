@@ -1,6 +1,7 @@
 {
   "name": "ikarus/sps-raspberry-pi",
   "license": "BSD-3-Clause",
+  "minimum-stability": "dev",
   "authors": [
     {
       "name": "Thomas Abplanalp",
