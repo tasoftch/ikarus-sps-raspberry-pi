@@ -48,8 +48,8 @@ class InputSensorBrick implements SensorBrickInterface
 {
     const TRIGGER_INTERVAL_MS = 1;
 
-    private $pin;
-    private $edge;
+    protected $pin;
+    protected $edge;
     private $eventName;
 
     /**
@@ -83,7 +83,7 @@ class InputSensorBrick implements SensorBrickInterface
 
     public function getIdentifier(): string
     {
-        return "INPUT_SENSOR_" . $this->pin->getPinNumber();
+        return "INPUT_SENSOR_EVENT";
     }
 
     public function run(PluginManagementInterface $manager)
@@ -97,11 +97,11 @@ class InputSensorBrick implements SensorBrickInterface
 
             if($newState != $state) {
                 if($this->edge == RaspberryPi::GPIO_EDGE_FALLING && $newState == 0)
-                    $manager->dispatchEvent( $this->eventName, new InputSensorEvent($state, $newState) );
+                    $manager->dispatchEvent( $this->eventName, new InputSensorEvent($state, $newState, $this->pin->getPinNumber()) );
                 elseif($this->edge == RaspberryPi::GPIO_EDGE_RISING && $newState == 1)
-                    $manager->dispatchEvent( $this->eventName, new InputSensorEvent($state, $newState) );
+                    $manager->dispatchEvent( $this->eventName, new InputSensorEvent($state, $newState, $this->pin->getPinNumber()) );
                 else
-                    $manager->dispatchEvent( $this->eventName, new InputSensorEvent($state, $newState) );
+                    $manager->dispatchEvent( $this->eventName, new InputSensorEvent($state, $newState, $this->pin->getPinNumber()) );
             }
 
             $state = $newState;

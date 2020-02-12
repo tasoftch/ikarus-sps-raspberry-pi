@@ -43,16 +43,20 @@ class InputSensorEvent extends DispatchedEvent
     private $oldState;
     /** @var int */
     private $newState;
+    /** @var int */
+    private $pinNumber;
 
     /**
      * InputSensorEvent constructor.
      * @param int $oldState
      * @param int $newState
+     * @param int $pinNumber
      */
-    public function __construct(int $oldState, int $newState)
+    public function __construct(int $oldState, int $newState, int $pinNumber)
     {
         $this->oldState = $oldState;
         $this->newState = $newState;
+        $this->pinNumber = $pinNumber;
     }
 
     /**
@@ -76,13 +80,22 @@ class InputSensorEvent extends DispatchedEvent
         return serialize([
             $this->oldState,
             $this->newState,
+            $this->pinNumber,
             parent::serialize()
         ]);
     }
 
     public function unserialize($serialized)
     {
-        list($this->oldState, $this->newState, $parent) = unserialize($serialized);
+        list($this->oldState, $this->newState, $this->pinNumber, $parent) = unserialize($serialized);
         parent::unserialize($parent);
+    }
+
+    /**
+     * @return int
+     */
+    public function getPinNumber(): int
+    {
+        return $this->pinNumber;
     }
 }

@@ -32,47 +32,23 @@
  *
  */
 
-namespace Ikarus\SPS\Raspberry\Pin;
+$str = "cpu  727 0 858 257684 595 0 18 0 0 0
+cpu0 173 0 213 63853 193 0 18 0 0 0
+cpu1 165 0 210 64663 109 0 0 0 0 0
+cpu2 179 0 165 64650 151 0 0 0 0 0
+cpu3 210 0 270 64516 141 0 0 0 0 0
+intr 76810 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 365 33 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 339 0 2947 0 0 0 0 0 0 0 0 0 0 0 23467 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 151 7243 0 0 0 0 4764 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 17037 0 0 0 0
+ctxt 66321
+btime 1581512719
+processes 779
+procs_running 1
+procs_blocked 0
+softirq 57273 2865 14002 133 838 0 0 12276 13430 0 13729";
+
+if(preg_match("/^cpu\s+([0-9\s]+)$/im", $str, $ms)) {
+    list($usr, $usrnc, $sys, $idle) = preg_split("/\s+/", $ms[1]);
+    $used = $usr+$usrnc+$sys;
 
 
-class InputPin implements InputPinInterface
-{
-    /** @var int */
-    private $pinNumber;
-    private $bcmNumber;
-
-    /**
-     * Pin constructor.
-     * @param int $pinNumber
-     * @param int $bcmNumber
-     */
-    public function __construct(int $pinNumber, int $bcmNumber)
-    {
-        $this->pinNumber = $pinNumber;
-        $this->bcmNumber = $bcmNumber;
-    }
-
-
-    /**
-     * @inheritDoc
-     */
-    public function getPinNumber(): int
-    {
-        return $this->pinNumber;
-    }
-
-    /**
-     * @inheritDoc
-     */
-    public function getBcmNumber(): int
-    {
-        return $this->bcmNumber;
-    }
-
-    /**
-     * @inheritDoc
-     */
-    public function getValue() {
-        return file_get_contents(sprintf("/sys/class/gpio/gpio%d/value", $this->getBcmNumber()));
-    }
 }
+

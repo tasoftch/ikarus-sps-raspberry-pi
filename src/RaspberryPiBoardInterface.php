@@ -203,4 +203,9 @@ interface RaspberryPiBoardInterface
      * @throws Exception
      */
     public function requireUsage(PinInfo $pin, $usage = PinInfo::USAGE_INPUT, int $options = 0);
+
+    /**
+     * This method sets all used pins to input mode.
+     */
+    public function cleanupUsedPins();
 }

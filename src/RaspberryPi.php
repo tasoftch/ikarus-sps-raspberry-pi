@@ -252,24 +252,28 @@ class RaspberryPi implements RaspberryPiBoardInterface
 
         switch ($usage) {
             case PinInfo::USAGE_OUTPUT:
-                exec(sprintf("gpio mode %d out && gpio write %d 0", $pin->getWiredPinNumber(), $pin->getWiredPinNumber()));
                 $PIN = new OutputPin($pin->getWiredPinNumber(), $pin->getBCMPinNumber());
                 file_put_contents("/sys/class/gpio/export", $pin->getBCMPinNumber());
+                $prefix = sprintf("/sys/class/gpio/gpio%d", $pin->getBCMPinNumber());
+                file_put_contents("$prefix/direction", 'out');
+                file_put_contents("$prefix/value", '0');
                 break;
             case PinInfo::USAGE_PWM:
                 exec(sprintf("gpio mode %d pwm && gpio pwm %d 0", $pin->getWiredPinNumber(), $pin->getWiredPinNumber()));
                 $PIN = new OutputPWMPin($pin->getWiredPinNumber(), $pin->getBCMPinNumber());
                 break;
             default:
-                $cmd = sprintf("gpio mode %d in", $pin->getWiredPinNumber());
-                if($options & PinInfo::OPTION_RESISTOR_PULL_DOWN)
-                    $cmd .= sprintf(" && gpio mode %d down", $pin->getWiredPinNumber());
-                elseif($options & PinInfo::OPTION_RESISTOR_PULL_UP)
-                    $cmd .= sprintf(" && gpio mode %d up", $pin->getWiredPinNumber());
-                elseif($options == PinInfo::OPTION_RESISTOR_NONE)
-                    $cmd .= sprintf(" && gpio mode %d tri", $pin->getWiredPinNumber());
+                file_put_contents("/sys/class/gpio/export", $pin->getBCMPinNumber());
+                $prefix = sprintf("/sys/class/gpio/gpio%d", $pin->getBCMPinNumber());
 
-                exec($cmd);
+                $cmd = "";
+                if($options & PinInfo::OPTION_RESISTOR_PULL_DOWN)
+                    $cmd = sprintf("gpio mode %d down", $pin->getWiredPinNumber());
+                elseif($options & PinInfo::OPTION_RESISTOR_PULL_UP)
+                    $cmd = sprintf("gpio mode %d up", $pin->getWiredPinNumber());
+
+                if($cmd)
+                    exec($cmd);
 
                 $PIN = new InputPin($pin->getWiredPinNumber(), $pin->getBCMPinNumber());
         }
@@ -277,5 +281,14 @@ class RaspberryPi implements RaspberryPiBoardInterface
         $this->usedPins[ $pin->getWiredPinNumber() ] = $PIN;
 
         return $PIN;
+    }
+
+    public function cleanupUsedPins()
+    {
+        /** @var PinInterface $pin */
+        foreach($this->usedPins as $pin) {
+            exec(sprintf("gpio mode %d in && gpio mode %d tri", $pin->getPinNumber(), $pin->getPinNumber()));
+            file_put_contents("/sys/class/gpio/unexport", $pin->getBcmNumber());
+        }
     }
 }

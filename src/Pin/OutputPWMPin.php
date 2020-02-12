@@ -38,7 +38,7 @@ namespace Ikarus\SPS\Raspberry\Pin;
 class OutputPWMPin extends InputPin implements OutputPWMPinInterface
 {
     /** @var float */
-    private $value;
+    private $value = 0;
 
     /**
      * @return float

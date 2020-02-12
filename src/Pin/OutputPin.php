@@ -43,6 +43,6 @@ class OutputPin extends InputPin implements OutputPinInterface
     public function setValue($value)
     {
         $value = $value ? 1 : 0;
-        file_put_contents(sprintf("/sys/class/gpio/gpio%02d/value", $this->getBcmNumber()), $value);
+        file_put_contents(sprintf("/sys/class/gpio/gpio%d/value", $this->getBcmNumber()), $value);
     }
 }
