@@ -101,7 +101,7 @@ class PiControllerPlugin extends CyclicIntermediatePlugin
         }
 
         if(substr($command, 0, 8) == 'rpi-info') {
-            $data = unserialize(substr($command, 8));
+            $data = unserialize(substr($command, 9));
             $values = [];
             foreach($data as $key) {
                 if(isset($this->properties[$key]))

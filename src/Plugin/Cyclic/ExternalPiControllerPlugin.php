@@ -36,6 +36,7 @@ namespace Ikarus\SPS\Raspberry\Plugin\Cyclic;
 
 
 use Ikarus\SPS\Communication\CommunicationInterface;
+use Ikarus\SPS\Exception\SPSException;
 use Ikarus\SPS\Plugin\Cyclic\AbstractCyclicPlugin;
 use Ikarus\SPS\Plugin\Management\CyclicPluginManagementInterface;
 
@@ -57,6 +58,9 @@ class ExternalPiControllerPlugin extends AbstractCyclicPlugin
     const PROP_TEMPERATURE = 'tmp';
     const PROP_CPU_USAGE = 'cpu';
     const PROP_CPU_FREQUENCY = 'cpf';
+    const PROP_STATUS = 'stat';
+    const PROP_ON_OFF_STATUS = 'onoff';
+    const PROP_ADDRESS = 'addr';
 
     /** @var CommunicationInterface */
     private $communication;
@@ -68,6 +72,8 @@ class ExternalPiControllerPlugin extends AbstractCyclicPlugin
     private $domain;
 
     private $enabled = true;
+    private $status = -2;
+    private $on_off_status = 1;
 
     /**
      * ExternalPiControllerPlugin constructor.
@@ -102,27 +108,52 @@ class ExternalPiControllerPlugin extends AbstractCyclicPlugin
             $pluginManagement->clearCommand("$this->identifier.DISABLED");
         }
 
-        if($this->isEnabled()) {
-            if($pluginManagement->hasCommand("$this->identifier.POWEROFF")) {
-                $this->getCommunication()->sendToSPS("poweroff");
-                $pluginManagement->clearCommand("$this->identifier.POWEROFF");
-            }
-            if($pluginManagement->hasCommand("$this->identifier.REBOOT")) {
-                $this->getCommunication()->sendToSPS("reboot");
-                $pluginManagement->clearCommand("$this->identifier.REBOOT");
-            }
+        try {
+            if($this->isEnabled()) {
+                if($pluginManagement->hasCommand("$this->identifier.POWEROFF")) {
+                    @$this->getCommunication()->sendToSPS("poweroff");
+                    $this->status = 3;
+                    $this->on_off_status = 1;
+                    $pluginManagement->clearCommand("$this->identifier.POWEROFF");
+                }
+                elseif($pluginManagement->hasCommand("$this->identifier.REBOOT")) {
+                    $this->status = 1;
+                    $this->on_off_status = 1;
+                    @$this->getCommunication()->sendToSPS("reboot");
+                    $pluginManagement->clearCommand("$this->identifier.REBOOT");
+                }else {
+                    $this->on_off_status = 2;
+                    $this->status = 2;
+                }
 
 
-            $data = serialize(array_keys($this->getProperties()));
-            $data = $this->getCommunication()->sendToSPS("rpi-info $data");
-            $data = unserialize($data);
+                $data = serialize(array_keys($this->getProperties()));
+                $data = @$this->getCommunication()->sendToSPS("rpi-info $data");
 
-            foreach($this->getProperties() as $key => $property) {
-                $v = $data[$key] ?? NULL;
-                if(NULL !== $v)
-                    $pluginManagement->putValue($v, $property, $this->getDomain());
+
+
+                $data = unserialize($data);
             }
+        } catch (SPSException $exception) {
+            $this->status = -1;
+            $this->on_off_status = 4;
         }
+
+        $values = [];
+
+        foreach($this->getProperties() as $key => $property) {
+            if($key == static::PROP_STATUS)
+                $v = $this->status;
+            elseif($key == static::PROP_ON_OFF_STATUS)
+                $v = $this->on_off_status;
+            else
+                $v = $data[$key] ?? NULL;
+
+            if($v !== NULL)
+                $values[$property] = $v;
+        }
+
+        $pluginManagement->putValue($values, $this->getIdentifier(), $this->getDomain());
     }
 
     /**
