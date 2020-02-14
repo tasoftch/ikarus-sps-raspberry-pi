@@ -34,7 +34,7 @@
 
 namespace Ikarus\SPS\Raspberry\Plugin\Cyclic;
 
-use Ikarus\SPS\Plugin\Intermediate\CyclicIntermediatePlugin;
+use Ikarus\SPS\Server\Cyclic\ServerPlugin;
 use Ikarus\SPS\Plugin\Management\CyclicPluginManagementInterface;
 use Ikarus\SPS\Plugin\Management\PluginManagementInterface;
 use Ikarus\SPS\Raspberry\RaspberryPi;
@@ -46,7 +46,7 @@ use Ikarus\SPS\Raspberry\RaspberryPi;
  * @package Ikarus\SPS\Raspberry\Plugin\Cyclic
  * @see ExternalPiControllerPlugin
  */
-class PiControllerPlugin extends CyclicIntermediatePlugin
+class PiControllerPlugin extends ServerPlugin
 {
     private $piInstance;
     private $properties = [];

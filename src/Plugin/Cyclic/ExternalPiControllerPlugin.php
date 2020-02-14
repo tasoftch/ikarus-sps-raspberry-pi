@@ -35,7 +35,8 @@
 namespace Ikarus\SPS\Raspberry\Plugin\Cyclic;
 
 
-use Ikarus\SPS\Communication\CommunicationInterface;
+use Ikarus\SPS\Client\ClientInterface;
+use Ikarus\SPS\Client\Command\Command;
 use Ikarus\SPS\Exception\SPSException;
 use Ikarus\SPS\Plugin\Cyclic\AbstractCyclicPlugin;
 use Ikarus\SPS\Plugin\Management\CyclicPluginManagementInterface;
@@ -62,8 +63,8 @@ class ExternalPiControllerPlugin extends AbstractCyclicPlugin
     const PROP_ON_OFF_STATUS = 'onoff';
     const PROP_ADDRESS = 'addr';
 
-    /** @var CommunicationInterface */
-    private $communication;
+    /** @var ClientInterface */
+    private $client;
     /** @var string */
     private $identifier;
     /** @var array */
@@ -80,11 +81,11 @@ class ExternalPiControllerPlugin extends AbstractCyclicPlugin
      * @param string $identifier
      * @param array $properties mapping self::PROP_* constants to desired field names
      * @param string $domain
-     * @param CommunicationInterface $communication
+     * @param ClientInterface $client
      */
-    public function __construct(string $identifier, array $properties, string $domain, CommunicationInterface $communication)
+    public function __construct(string $identifier, array $properties, string $domain, ClientInterface $client)
     {
-        $this->communication = $communication;
+        $this->client = $client;
         $this->identifier = $identifier;
         $this->domain = $domain;
 
@@ -111,15 +112,15 @@ class ExternalPiControllerPlugin extends AbstractCyclicPlugin
         try {
             if($this->isEnabled()) {
                 if($pluginManagement->hasCommand("$this->identifier.POWEROFF")) {
-                    @$this->getCommunication()->sendToSPS("poweroff");
+                    @$this->getClient()->sendCommand(new Command("poweroff"));
                     $this->status = 3;
                     $this->on_off_status = 1;
-                    $pluginManagement->clearCommand("$this->identifier.POWEROFF");
+                    $pluginManagement->clearCommand(new Command("$this->identifier.POWEROFF"));
                 }
                 elseif($pluginManagement->hasCommand("$this->identifier.REBOOT")) {
                     $this->status = 1;
                     $this->on_off_status = 1;
-                    @$this->getCommunication()->sendToSPS("reboot");
+                    @$this->getClient()->sendCommand(new Command("reboot"));
                     $pluginManagement->clearCommand("$this->identifier.REBOOT");
                 }else {
                     $this->on_off_status = 2;
@@ -128,7 +129,7 @@ class ExternalPiControllerPlugin extends AbstractCyclicPlugin
 
 
                 $data = serialize(array_keys($this->getProperties()));
-                $data = @$this->getCommunication()->sendToSPS("rpi-info $data");
+                $data = @$this->getClient()->sendCommand(new Command("rpi-info $data"));
 
 
 
@@ -157,11 +158,11 @@ class ExternalPiControllerPlugin extends AbstractCyclicPlugin
     }
 
     /**
-     * @return CommunicationInterface
+     * @return ClientInterface
      */
-    public function getCommunication(): CommunicationInterface
+    public function getClient(): ClientInterface
     {
-        return $this->communication;
+        return $this->client;
     }
 
     /**

@@ -264,7 +264,6 @@ class RaspberryPi implements RaspberryPiBoardInterface
                 break;
             default:
                 file_put_contents("/sys/class/gpio/export", $pin->getBCMPinNumber());
-                $prefix = sprintf("/sys/class/gpio/gpio%d", $pin->getBCMPinNumber());
 
                 $cmd = "";
                 if($options & PinInfo::OPTION_RESISTOR_PULL_DOWN)
