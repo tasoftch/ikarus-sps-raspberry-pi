@@ -37,6 +37,7 @@ namespace Ikarus\SPS\Raspberry\Plugin\Cyclic;
 
 use Ikarus\SPS\Client\ClientInterface;
 use Ikarus\SPS\Client\Command\Command;
+use Ikarus\SPS\Client\Exception\SocketException;
 use Ikarus\SPS\Exception\SPSException;
 use Ikarus\SPS\Plugin\Cyclic\AbstractCyclicPlugin;
 use Ikarus\SPS\Plugin\Management\CyclicPluginManagementInterface;
@@ -129,10 +130,12 @@ class ExternalPiControllerPlugin extends AbstractCyclicPlugin
 
 
                 $data = serialize(array_keys($this->getProperties()));
-                $data = @$this->getClient()->sendCommand(new Command("rpi-info $data"));
 
-
-
+                try {
+                    $data = @$this->getClient()->sendCommand(new Command("rpi-info $data"));
+                } catch (SocketException $exception) {
+                    $data = serialize(NULL);
+                }
                 $data = unserialize($data);
             }
         } catch (SPSException $exception) {
