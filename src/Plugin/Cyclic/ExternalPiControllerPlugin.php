@@ -36,9 +36,7 @@ namespace Ikarus\SPS\Raspberry\Plugin\Cyclic;
 
 
 use Ikarus\SPS\Client\ClientInterface;
-use Ikarus\SPS\Client\Command\Command;
-use Ikarus\SPS\Client\Exception\SocketException;
-use Ikarus\SPS\Exception\SPSException;
+use Ikarus\SPS\Client\TcpClient;
 use Ikarus\SPS\Plugin\Cyclic\AbstractCyclicPlugin;
 use Ikarus\SPS\Plugin\Management\CyclicPluginManagementInterface;
 
@@ -76,6 +74,7 @@ class ExternalPiControllerPlugin extends AbstractCyclicPlugin
     private $enabled = true;
     private $status = -2;
     private $on_off_status = 1;
+    private $auto_stat = 0;
 
     /**
      * ExternalPiControllerPlugin constructor.
@@ -99,49 +98,63 @@ class ExternalPiControllerPlugin extends AbstractCyclicPlugin
     }
 
 
+    public function setAutomaticalStatus(int $status = NULL, $on_off = NULL) {
+        $this->auto_stat = $status !== NULL || $on_off !== NULL;
+
+        $this->status = $status;
+        $this->on_off_status = $on_off;
+    }
+
+
     public function update(CyclicPluginManagementInterface $pluginManagement)
     {
-        if($pluginManagement->hasCommand("$this->identifier.ENABLED")) {
-            $this->setEnabled(true);
-            $pluginManagement->clearCommand("$this->identifier.ENABLED");
-        }
-        if($pluginManagement->hasCommand("$this->identifier.DISABLED")) {
-            $this->setEnabled(false);
-            $pluginManagement->clearCommand("$this->identifier.DISABLED");
-        }
+        $c = $this->getClient();
 
-        try {
-            if($this->isEnabled()) {
-                if($pluginManagement->hasCommand("$this->identifier.POWEROFF")) {
-                    @$this->getClient()->sendCommand(new Command("poweroff"));
-                    $this->status = 3;
-                    $this->on_off_status = 1;
-                    $pluginManagement->clearCommand(new Command("$this->identifier.POWEROFF"));
-                }
-                elseif($pluginManagement->hasCommand("$this->identifier.REBOOT")) {
-                    $this->status = 1;
-                    $this->on_off_status = 1;
-                    @$this->getClient()->sendCommand(new Command("reboot"));
-                    $pluginManagement->clearCommand("$this->identifier.REBOOT");
-                }else {
-                    $this->on_off_status = 2;
-                    $this->status = 2;
-                }
+        $setStatus = function($status, $stat = -1) {
+            if(!$this->auto_stat) {
+                if($stat == -1)
+                    $stat = $status ? 1 : 0;
 
-
-                $data = serialize(array_keys($this->getProperties()));
-
-                try {
-                    $data = @$this->getClient()->sendCommand(new Command("rpi-info $data"));
-                } catch (SocketException $exception) {
-                    $data = serialize(NULL);
-                }
-                $data = unserialize($data);
+                $this->status = $status;
+                $this->on_off_status = $stat;
             }
-        } catch (SPSException $exception) {
-            $this->status = -1;
-            $this->on_off_status = 4;
+        };
+
+        if($c instanceof TcpClient ? $c->isReachable() : true) {
+            $setStatus(2);
+
+            if($pluginManagement->hasCommand("$this->identifier.ENABLED")) {
+                $this->setEnabled(true);
+                $pluginManagement->clearCommand("$this->identifier.ENABLED");
+            }
+            if($pluginManagement->hasCommand("$this->identifier.DISABLED")) {
+                $this->setEnabled(false);
+                $pluginManagement->clearCommand("$this->identifier.DISABLED");
+            }
+
+            try {
+                if($this->isEnabled()) {
+                    if($pluginManagement->hasCommand("$this->identifier.POWEROFF")) {
+                        @$c->sendCommandNamed("poweroff");
+                        $pluginManagement->clearCommand("$this->identifier.POWEROFF");
+                    }
+                    elseif($pluginManagement->hasCommand("$this->identifier.REBOOT")) {
+                        @$c->sendCommandNamed("reboot");
+                        $pluginManagement->clearCommand("$this->identifier.REBOOT");
+                    }
+
+                    $data = serialize(array_keys($this->getProperties()));
+                    $data = @$c->sendCommandNamed("rpi-info $data");
+                    $data = unserialize($data);
+                    $setStatus(4, 1);
+                }
+            } catch (\Exception $exception) {
+                $setStatus(-1, 4);
+            }
+        } else {
+            $setStatus(0, 1);
         }
+
 
         $values = [];
 
