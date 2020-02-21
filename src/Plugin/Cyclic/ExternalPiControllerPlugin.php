@@ -49,27 +49,26 @@ use Ikarus\SPS\Plugin\Management\CyclicPluginManagementInterface;
  */
 class ExternalPiControllerPlugin extends AbstractCyclicPlugin
 {
-    const PROP_MODEL = 'md';
-    const PROP_MODEL_NAME = 'mdn';
-    const PROP_SERIAL = 'srl';
-    const PROP_HARDWARE = 'hdw';
-    const PROP_CORE_COUNT = 'cpc';
+    const PROP_MODEL =              1<<1;
+    const PROP_MODEL_NAME =         1<<2;
+    const PROP_SERIAL =             1<<3;
+    const PROP_HARDWARE =           1<<4;
+    const PROP_CORE_COUNT =         1<<5;
 
-    const PROP_TEMPERATURE = 'tmp';
-    const PROP_CPU_USAGE = 'cpu';
-    const PROP_CPU_FREQUENCY = 'cpf';
-    const PROP_STATUS = 'stat';
-    const PROP_ON_OFF_STATUS = 'onoff';
-    const PROP_ADDRESS = 'addr';
+    const PROP_TEMPERATURE =        1<<6;
+    const PROP_CPU_USAGE =          1<<7;
+    const PROP_CPU_FREQUENCY =      1<<8;
+    const PROP_STATUS =             1<<9;
+    const PROP_ON_OFF_STATUS =      1<<10;
+    const PROP_ADDRESS =            1<<11;
+
+    const PROP_ALL =                4095;
 
     /** @var ClientInterface */
     private $client;
-    /** @var string */
-    private $identifier;
-    /** @var array */
+    /** @var int */
     private $properties;
-    /** @var string */
-    private $domain;
+    private $_properties;
 
     private $enabled = true;
     private $status = -2;
@@ -79,30 +78,26 @@ class ExternalPiControllerPlugin extends AbstractCyclicPlugin
     /**
      * ExternalPiControllerPlugin constructor.
      * @param string $identifier
-     * @param array $properties mapping self::PROP_* constants to desired field names
-     * @param string $domain
      * @param ClientInterface $client
+     * @param int $properties   Bitmask of which properties are required from the pi
      */
-    public function __construct(string $identifier, array $properties, string $domain, ClientInterface $client)
+    public function __construct(string $identifier, ClientInterface $client, int $properties = self::PROP_ALL)
     {
+        parent::__construct($identifier);
         $this->client = $client;
-        $this->identifier = $identifier;
-        $this->domain = $domain;
-
-        foreach ($properties as $key => $name) {
-            if(is_numeric($key))
-                $this->properties[$name] = $name;
-            else
-                $this->properties[$key] = $name;
-        }
+        $this->properties = $properties;
     }
 
-
+    /**
+     * Sets an automatical value (by a procedure) which covers the detecting status receiving from pi
+     *
+     * @param int|NULL $status
+     * @param null $on_off
+     */
     public function setAutomaticalStatus(int $status = NULL, $on_off = NULL) {
         $this->auto_stat = $status !== NULL || $on_off !== NULL;
-
-        $this->status = $status;
-        $this->on_off_status = $on_off;
+        $this->status = $status !== NULL ?: $this->status;
+        $this->on_off_status = $on_off !== NULL ?: $this->on_off_status;
     }
 
 
@@ -122,30 +117,30 @@ class ExternalPiControllerPlugin extends AbstractCyclicPlugin
 
         if($c instanceof TcpClient ? $c->isReachable() : true) {
             $setStatus(2);
+            $ID = $this->getIdentifier();
 
-            if($pluginManagement->hasCommand("$this->identifier.ENABLED")) {
+            if($pluginManagement->hasCommand("$ID.ENABLED")) {
                 $this->setEnabled(true);
-                $pluginManagement->clearCommand("$this->identifier.ENABLED");
+                $pluginManagement->clearCommand("$ID.ENABLED");
             }
-            if($pluginManagement->hasCommand("$this->identifier.DISABLED")) {
+            if($pluginManagement->hasCommand("$ID.DISABLED")) {
                 $this->setEnabled(false);
-                $pluginManagement->clearCommand("$this->identifier.DISABLED");
+                $pluginManagement->clearCommand("$ID.DISABLED");
             }
 
             try {
                 if($this->isEnabled()) {
-                    if($pluginManagement->hasCommand("$this->identifier.POWEROFF")) {
+                    if($pluginManagement->hasCommand("$ID.POWEROFF")) {
+                        $pluginManagement->clearCommand("$ID.POWEROFF");
                         @$c->sendCommandNamed("poweroff");
-                        $pluginManagement->clearCommand("$this->identifier.POWEROFF");
-                    }
-                    elseif($pluginManagement->hasCommand("$this->identifier.REBOOT")) {
-                        @$c->sendCommandNamed("reboot");
-                        $pluginManagement->clearCommand("$this->identifier.REBOOT");
                     }
 
-                    $data = serialize(array_keys($this->getProperties()));
-                    $data = @$c->sendCommandNamed("rpi-info $data");
-                    $data = unserialize($data);
+                    $data = @$c->sendCommandNamed("rpi-info " . $this->getProperties());
+                    $this->_properties = unserialize($data);
+
+                    $this->_properties[ self::PROP_STATUS ] = $this->status;
+                    $this->_properties[ self::PROP_ON_OFF_STATUS ] = $this->on_off_status;
+
                     $setStatus(4, 1);
                 }
             } catch (\Exception $exception) {
@@ -154,23 +149,6 @@ class ExternalPiControllerPlugin extends AbstractCyclicPlugin
         } else {
             $setStatus(0, 1);
         }
-
-
-        $values = [];
-
-        foreach($this->getProperties() as $key => $property) {
-            if($key == static::PROP_STATUS)
-                $v = $this->status;
-            elseif($key == static::PROP_ON_OFF_STATUS)
-                $v = $this->on_off_status;
-            else
-                $v = $data[$key] ?? NULL;
-
-            if($v !== NULL)
-                $values[$property] = $v;
-        }
-
-        $pluginManagement->putValue($values, $this->getIdentifier(), $this->getDomain());
     }
 
     /**
@@ -179,22 +157,6 @@ class ExternalPiControllerPlugin extends AbstractCyclicPlugin
     public function getClient(): ClientInterface
     {
         return $this->client;
-    }
-
-    /**
-     * @return string
-     */
-    public function getIdentifier(): string
-    {
-        return $this->identifier;
-    }
-
-    /**
-     * @return array
-     */
-    public function getProperties(): array
-    {
-        return $this->properties;
     }
 
     /**
@@ -214,18 +176,28 @@ class ExternalPiControllerPlugin extends AbstractCyclicPlugin
     }
 
     /**
-     * @return string
+     * @return int
      */
-    public function getDomain(): string
+    public function getDesiredProperties(): int
     {
-        return $this->domain;
+        return $this->properties;
     }
 
     /**
-     * @param string $domain
+     * Gets all properties as key value array.
+     * The keys are integer numbers representing the self::PROP_* constants.
+     *
+     * @return array
      */
-    public function setDomain(string $domain): void
-    {
-        $this->domain = $domain;
+    public function getProperties(): array {
+        return $this->_properties ?: [];
+    }
+
+    /**
+     * @param int $property
+     * @return mixed|null
+     */
+    public function getProperty(int $property) {
+        return $this->_properties[ $property ] ?? NULL;
     }
 }

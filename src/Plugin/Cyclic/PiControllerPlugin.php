@@ -51,6 +51,8 @@ class PiControllerPlugin extends ServerPlugin
     private $piInstance;
     private $properties = [];
 
+    private $usage, $lastUsage, $nullCount;
+
     public function __construct(string $address, int $port = NULL, string $startMessage = 'Welcome to Remote Event Server of Ikarus SPS!')
     {
         parent::__construct($address, $port, $startMessage);
@@ -67,23 +69,31 @@ class PiControllerPlugin extends ServerPlugin
     }
 
     private function _updateProperties() {
-        static $usage;
-
         $this->properties[ ExternalPiControllerPlugin::PROP_TEMPERATURE ] = $this->piInstance->getCpuTemperature();
 
         if(preg_match("/^cpu\s+([0-9\s]+)$/im", file_get_contents("/proc/stat"), $ms)) {
             list($usr,/* Not used */, $sys, $idle) = preg_split("/\s+/", $ms[1]);
             $used = $usr+$sys;
 
-            if($usage) {
-                list($ou, $oi) = $usage;
+            if($this->usage) {
+                list($ou, $oi) = $this->usage;
 
                 $du = $used-$ou;
                 $di = $idle-$oi;
 
-                $this->properties[ ExternalPiControllerPlugin::PROP_CPU_USAGE ] = $du / ($du+$di) * 100;
+                $us = $du / ($du+$di) * 100;
+                if($us == 0 && $this->lastUsage != 0) {
+                    $this->nullCount++;
+                    if($this->nullCount < 20)
+                        $us = $this->lastUsage;
+                } else {
+                    $this->nullCount = 0;
+                }
+
+                $this->properties[ ExternalPiControllerPlugin::PROP_CPU_USAGE ] = $us;
+                $this->lastUsage = $us;
             }
-            $usage = [$used, $idle];
+            $this->usage = [$used, $idle];
         }
     }
 
@@ -94,18 +104,14 @@ class PiControllerPlugin extends ServerPlugin
             $management->stopEngine();
             return "";
         }
-        if($command == 'poweroff') {
-            exec("sudo poweroff");
-            $management->stopEngine();
-            return "";
-        }
 
-        if(substr($command, 0, 8) == 'rpi-info') {
-            $data = unserialize(substr($command, 9));
+        if(preg_match("/^rpi-info\s*(\d+)$/i", $command, $ms)) {
+            $props = $ms[1];
             $values = [];
-            foreach($data as $key) {
-                if(isset($this->properties[$key]))
-                    $values[$key] = $this->properties[$key];
+            for($e=1;$e <= ExternalPiControllerPlugin::PROP_ALL;$e<<=1) {
+                if($props & $e) {
+                    $values[$e] = $this->properties[$e];
+                }
             }
             return serialize($values);
         }
