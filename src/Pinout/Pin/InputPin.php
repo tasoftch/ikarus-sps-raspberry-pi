@@ -66,6 +66,6 @@ class InputPin implements InputPinInterface
      * @inheritDoc
      */
     public function getValue() {
-        return file_get_contents(sprintf(static::GPIO_VALUE_PATH, $this->getPinNumber()));
+        return trim( file_get_contents(sprintf(static::GPIO_VALUE_PATH, $this->getPinNumber())) ) * 1;
     }
 }
