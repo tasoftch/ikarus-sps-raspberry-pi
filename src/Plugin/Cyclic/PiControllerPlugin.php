@@ -53,9 +53,9 @@ class PiControllerPlugin extends ServerPlugin
 
     private $usage, $lastUsage, $nullCount;
 
-    public function __construct(string $address, int $port = NULL, string $startMessage = 'Welcome to Remote Event Server of Ikarus SPS!')
+    public function __construct(string $address, int $port = NULL, string $identifier = NULL, string $startMessage = 'Welcome to Remote Event Server of Ikarus SPS!')
     {
-        parent::__construct($address, $port, $startMessage);
+        parent::__construct($address, $port, $identifier, $startMessage);
         $this->piInstance = RaspberryPi::getBoard();
 
         $str = file_get_contents('/proc/cpuinfo');
@@ -110,7 +110,8 @@ class PiControllerPlugin extends ServerPlugin
             $values = [];
             for($e=1;$e <= ExternalPiControllerPlugin::PROP_ALL;$e<<=1) {
                 if($props & $e) {
-                    $values[$e] = $this->properties[$e];
+                    if(isset($this->properties[$e]))
+                        $values[$e] = $this->properties[$e];
                 }
             }
             return serialize($values);
