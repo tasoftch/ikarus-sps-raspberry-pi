@@ -37,8 +37,9 @@ namespace Ikarus\SPS\Raspberry\Plugin\Cyclic;
 
 use Ikarus\SPS\Plugin\SetupPluginInterface;
 use Ikarus\SPS\Plugin\TearDownPluginInterface;
-use Ikarus\SPS\Raspberry\Pin\InputPinInterface;
-use Ikarus\SPS\Raspberry\Pin\PinInterface;
+use Ikarus\SPS\Raspberry\Exception\OccupiedPinException;
+use Ikarus\SPS\Raspberry\Pinout\Pin\InputPinInterface;
+use Ikarus\SPS\Raspberry\Pinout\Pin\PinInterface;
 use Ikarus\SPS\Raspberry\Pinout\Pin\InputPin;
 use Ikarus\SPS\Raspberry\Pinout\Pin\OutputPin;
 use Ikarus\SPS\Raspberry\Pinout\Pin\OutputPinInterface;
@@ -64,6 +65,8 @@ abstract class AbstractCyclicPlugin extends \Ikarus\SPS\Plugin\Cyclic\AbstractCy
     const PIN_MODE_OUTPUT = 1 << 4;
     const PIN_MODE_OUTPUT_PWM = 1 << 5;
 
+    private static $globallyUsedPins = [];
+
     private $usedPins = [];
     private $pinout;
 
@@ -85,33 +88,55 @@ abstract class AbstractCyclicPlugin extends \Ikarus\SPS\Plugin\Cyclic\AbstractCy
         return $this->pinout;
     }
 
+    private function usePin(PinInterface $pin) {
+        self::$globallyUsedPins[$pin->getPinNumber()] = $pin;
+        $this->usedPins[$pin->getPinNumber()] = $pin;
+    }
+
+    private function unusePin(PinInterface $pin) {
+        unset(self::$globallyUsedPins[ $pin->getPinNumber() ]);
+        unset($this->usedPins[ $pin->getPinNumber() ]);
+    }
+
     public function setup()
     {
         $resistor = 0;
         $pinout = $this->getPinout();
 
         foreach($pinout->yieldInputPin($resistor) as $pin) {
+            if(isset(self::$globallyUsedPins[$pin])) {
+                $e = new OccupiedPinException("Input pin $pin is already in use");
+                $e->setPinNumber($pin);
+                throw $e;
+            }
+
             if(!file_exists( sprintf(self::GPIO_EXPORTED_PIN, $pin) )) {
                 file_put_contents( self::GPIO_EXPORT, $pin );
             }
             file_put_contents(sprintf(self::GPIO_EXPORTED_PIN . "/direction", $pin), 'in');
 
             if($resistor == $pinout::INPUT_RESISTOR_UP) {
-                $this->usedPins[$pin] = new PullUpInputPin($pin);
+                $this->usePin(new PullUpInputPin($pin));
                 exec("gpio -g mode $pin up");
             }
             elseif($resistor == $pinout::INPUT_RESISTOR_DOWN) {
-                $this->usedPins[$pin] = new PullDownInputPin($pin);
+                $this->usePin(new PullDownInputPin($pin));
                 exec("gpio -g mode $pin down");
             } else
-                $this->usedPins[$pin] = new InputPin($pin);
+                $this->usePin(new InputPin($pin));
             $resistor = 0;
         }
 
         $pwm = false;
         foreach($pinout->yieldOutputPin($pwm) as $pin) {
+            if(isset(self::$globallyUsedPins[$pin])) {
+                $e = new OccupiedPinException("Output pin $pin is already in use");
+                $e->setPinNumber($pin);
+                throw $e;
+            }
+
             if($pwm) {
-                $this->usedPins[$pin] = new PulseWithModulationPin($pin);
+                $this->usePin(new PulseWithModulationPin($pin));
                 exec("gpio -g mode $pin pwm");
                 $pwm = false;
             } else {
@@ -119,14 +144,16 @@ abstract class AbstractCyclicPlugin extends \Ikarus\SPS\Plugin\Cyclic\AbstractCy
                     file_put_contents( self::GPIO_EXPORT, $pin );
                 }
                 file_put_contents(sprintf(self::GPIO_EXPORTED_PIN . "/direction", $pin), 'out');
-                $this->usedPins[$pin] = new OutputPin($pin);
+                $this->usePin(new OutputPin($pin));
             }
         }
     }
 
     public function tearDown()
     {
-        foreach($this->usedPins as $pin) {
+        $allPins = $this->usedPins;
+
+        foreach($allPins as $pin) {
             if($pin instanceof InputPinInterface) {
                 if($pin instanceof PullUpInputPin || $pin instanceof PullDownInputPin)
                     exec("gpio -g mode $pin tri");
@@ -139,8 +166,8 @@ abstract class AbstractCyclicPlugin extends \Ikarus\SPS\Plugin\Cyclic\AbstractCy
                 file_put_contents(sprintf(self::GPIO_EXPORTED_PIN . "/direction", $pin->getPinNumber()), 'in');
                 file_put_contents( self::GPIO_UNEXPORT, $pin->getPinNumber() );
             }
+            $this->unusePin($pin);
         }
-        $this->usedPins = [];
     }
 
     /**
