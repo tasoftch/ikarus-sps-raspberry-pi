@@ -135,6 +135,7 @@ abstract class AbstractCyclicPlugin extends \Ikarus\SPS\Plugin\Cyclic\AbstractCy
                 file_put_contents( self::GPIO_UNEXPORT, $pin );
             }
         }
+        $this->usedPins = [];
     }
 
     /**
@@ -143,5 +144,40 @@ abstract class AbstractCyclicPlugin extends \Ikarus\SPS\Plugin\Cyclic\AbstractCy
      */
     public function getPin($pin) {
         return $this->usedPins[$pin] ?? NULL;
+    }
+
+    /**
+     * @return array
+     */
+    public function getPins(): array {
+        return array_keys($this->usedPins);
+    }
+
+    /**
+     * Gets all used input pins
+     *
+     * @return array
+     */
+    public function getInputPins(): array {
+        $pins = [];
+        foreach($this->usedPins as $p => $m) {
+            if($m & self::PIN_MODE_INPUT)
+                $pins[$p] = $m;
+        }
+        return $pins;
+    }
+
+    /**
+     * Gets all used output pins
+     *
+     * @return array
+     */
+    public function getOutputPins(): array {
+        $pins = [];
+        foreach($this->usedPins as $p => $m) {
+            if($m & self::PIN_MODE_OUTPUT)
+                $pins[$p] = $m;
+        }
+        return $pins;
     }
 }
