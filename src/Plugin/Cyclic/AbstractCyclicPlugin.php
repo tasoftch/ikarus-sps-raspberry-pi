@@ -192,9 +192,9 @@ abstract class AbstractCyclicPlugin extends \Ikarus\SPS\Plugin\Cyclic\AbstractCy
      */
     public function getInputPins(): array {
         $pins = [];
-        foreach($this->usedPins as $p => $m) {
-            if($m & self::PIN_MODE_INPUT)
-                $pins[$p] = $m;
+        foreach($this->usedPins as $pin) {
+            if($pin instanceof InputPinInterface)
+                $pins[$pin->getPinNumber()] = $pin;
         }
         return $pins;
     }
@@ -206,9 +206,9 @@ abstract class AbstractCyclicPlugin extends \Ikarus\SPS\Plugin\Cyclic\AbstractCy
      */
     public function getOutputPins(): array {
         $pins = [];
-        foreach($this->usedPins as $p => $m) {
-            if($m & self::PIN_MODE_OUTPUT)
-                $pins[$p] = $m;
+        foreach($this->usedPins as $pin) {
+            if($pin instanceof OutputPinInterface)
+                $pins[$pin->getPinNumber()] = $pin;
         }
         return $pins;
     }
