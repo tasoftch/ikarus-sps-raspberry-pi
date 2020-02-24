@@ -56,13 +56,25 @@ abstract class AbstractCyclicPlugin extends \Ikarus\SPS\Plugin\Cyclic\AbstractCy
     const PIN_MODE_OUTPUT_PWM = 1 << 5;
 
     private $usedPins = [];
+    private $pinout;
+
+    /**
+     * Makes the pinout
+     *
+     * @return PinoutInterface
+     */
+    abstract public function makePinout(): PinoutInterface;
 
     /**
      * Specifies which pins are used by this plugin.
      *
      * @return PinoutInterface
      */
-    abstract public function getPinout(): PinoutInterface;
+    public function getPinout(): PinoutInterface {
+        if(!$this->pinout)
+            $this->pinout = $this->makePinout();
+        return $this->pinout;
+    }
 
     public function setup()
     {
