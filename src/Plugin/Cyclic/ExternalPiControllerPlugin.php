@@ -68,7 +68,10 @@ class ExternalPiControllerPlugin extends AbstractCyclicPlugin
     private $client;
     /** @var int */
     private $properties;
-    private $_properties;
+    private $_properties = [
+        self::PROP_STATUS => 0,
+        self::PROP_ON_OFF_STATUS => 1
+    ];
 
     private $enabled = true;
     private $status = -2;
@@ -96,8 +99,8 @@ class ExternalPiControllerPlugin extends AbstractCyclicPlugin
      */
     public function setAutomaticalStatus(int $status = NULL, $on_off = NULL) {
         $this->auto_stat = $status !== NULL || $on_off !== NULL;
-        $this->status = $status !== NULL ?: $this->status;
-        $this->on_off_status = $on_off !== NULL ?: $this->on_off_status;
+        $this->status = $status !== NULL ? $status : $this->status;
+        $this->on_off_status = $on_off !== NULL ? $on_off : $this->on_off_status;
     }
 
 
@@ -135,20 +138,23 @@ class ExternalPiControllerPlugin extends AbstractCyclicPlugin
                         @$c->sendCommandNamed("poweroff");
                     }
 
-                    $data = @$c->sendCommandNamed("rpi-info " . $this->getProperties());
+                    $data = @$c->sendCommandNamed("rpi-info " . $this->getDesiredProperties());
                     $this->_properties = unserialize($data);
-
-                    $this->_properties[ self::PROP_STATUS ] = $this->status;
-                    $this->_properties[ self::PROP_ON_OFF_STATUS ] = $this->on_off_status;
 
                     $setStatus(4, 1);
                 }
             } catch (\Exception $exception) {
+                if(!$this->auto_stat) {
+                    $this->_properties = [];
+                }
                 $setStatus(-1, 4);
             }
         } else {
             $setStatus(0, 1);
         }
+
+        $this->_properties[ self::PROP_STATUS ] = $this->status;
+        $this->_properties[ self::PROP_ON_OFF_STATUS ] = $this->on_off_status;
     }
 
     /**
