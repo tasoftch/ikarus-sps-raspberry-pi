@@ -40,6 +40,6 @@ class OutputPin extends InputPin implements OutputPinInterface
     public function setValue($value)
     {
         $value = $value ? 1 : 0;
-        file_put_contents(static::GPIO_VALUE_PATH, $value);
+        file_put_contents(sprintf(static::GPIO_VALUE_PATH, $this->getPinNumber()), $value);
     }
 }
