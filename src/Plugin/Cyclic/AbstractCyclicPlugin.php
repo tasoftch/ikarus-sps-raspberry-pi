@@ -154,10 +154,7 @@ abstract class AbstractCyclicPlugin extends \Ikarus\SPS\Plugin\Cyclic\AbstractCy
         $allPins = $this->usedPins;
 
         foreach($allPins as $pinNr => $pin) {
-            if($pin instanceof InputPinInterface) {
-                if($pin instanceof PullUpInputPin || $pin instanceof PullDownInputPin)
-                    exec("gpio -g mode $pinNr down");
-            } elseif ($pin instanceof OutputPinInterface) {
+             if ($pin instanceof OutputPinInterface) {
                 if($pin instanceof PulseWithModulationPinInterface) {
                     $pin->setValue(0.0);
                     exec("gpio -g mode $pinNr in");
@@ -167,7 +164,10 @@ abstract class AbstractCyclicPlugin extends \Ikarus\SPS\Plugin\Cyclic\AbstractCy
                     exec("gpio -g mode $pinNr in");
                     exec("gpio -g mode $pinNr down");
                 }
-            }
+            } elseif($pin instanceof InputPinInterface) {
+                 if($pin instanceof PullUpInputPin || $pin instanceof PullDownInputPin)
+                     exec("gpio -g mode $pinNr down");
+             }
 
             if(file_exists( sprintf(self::GPIO_EXPORTED_PIN, $pin->getPinNumber()) )) {
                 file_put_contents( self::GPIO_UNEXPORT, $pin->getPinNumber() );

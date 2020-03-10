@@ -72,6 +72,7 @@ class ExternalPiControllerPlugin extends AbstractCyclicPlugin
         self::PROP_STATUS => 0,
         self::PROP_ON_OFF_STATUS => 1
     ];
+    private $customProperties = [];
 
     private $enabled = true;
     private $status = -2;
@@ -139,7 +140,16 @@ class ExternalPiControllerPlugin extends AbstractCyclicPlugin
                     }
 
                     $data = @$c->sendCommandNamed("rpi-info " . $this->getDesiredProperties());
-                    $this->_properties = unserialize($data);
+                    $props = unserialize($data);
+
+                    if(isset($props["__ikarus_cp__"])) {
+                        $cp = $props["__ikarus_cp__"];
+                        unset($props["__ikarus_cp__"]);
+                        $this->_properties = $props;
+                        $this->receiveCustomProperties($cp);
+                    } else {
+                        $this->_properties = $props;
+                    }
 
                     $setStatus(4, 1);
                 }
@@ -155,6 +165,28 @@ class ExternalPiControllerPlugin extends AbstractCyclicPlugin
 
         $this->_properties[ self::PROP_STATUS ] = $this->status;
         $this->_properties[ self::PROP_ON_OFF_STATUS ] = $this->on_off_status;
+    }
+
+    protected function receiveCustomProperties(array $properties) {
+        $this->customProperties = $properties;
+    }
+
+    /**
+     * @return array
+     */
+    public function getCustomProperties()
+    {
+        return $this->customProperties;
+    }
+
+    /**
+     * @param string|NULL $name
+     */
+    public function clearCustomProperty(string $name = NULL) {
+        if(NULL === $name)
+            $this->customProperties = [];
+        elseif (isset($this->customProperties[$name]))
+            unset($this->customProperties[$name]);
     }
 
     /**

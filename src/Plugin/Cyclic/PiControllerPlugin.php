@@ -51,6 +51,9 @@ class PiControllerPlugin extends ServerPlugin
     private $piInstance;
     private $properties = [];
 
+    private $customProperties = [];
+
+
     private $usage, $lastUsage, $nullCount;
 
     public function __construct(string $address, int $port = NULL, string $identifier = NULL, string $startMessage = 'Welcome to Remote Event Server of Ikarus SPS!')
@@ -97,6 +100,32 @@ class PiControllerPlugin extends ServerPlugin
         }
     }
 
+    /**
+     * This method prepares a property to be sent to the external pi controller plugin running in a different sps.
+     * All properties are collected until the external pi controller sends a rpi-info command.
+     *
+     * @param string $name
+     * @param bool|int|string|float|array|\Serializable $property
+     */
+    public function sendCustomProperty(string $name, $property) {
+        $this->customProperties[$name] = $property;
+    }
+
+    /**
+     *
+     * @return array
+     */
+    public function getPreparedCustomProperties() {
+        return $this->customProperties;
+    }
+
+    /**
+     *
+     */
+    public function resetCustomProperties() {
+        $this->customProperties = [];
+    }
+
     protected function doCommand($command, PluginManagementInterface $management): string
     {
         if($command == 'poweroff') {
@@ -114,6 +143,11 @@ class PiControllerPlugin extends ServerPlugin
                         $values[$e] = $this->properties[$e];
                 }
             }
+            if($this->customProperties) {
+                $values["__ikarus_cp__"] = $this->customProperties;
+                $this->resetCustomProperties();
+            }
+
             return serialize($values);
         }
 
