@@ -54,6 +54,10 @@ class PulseWithModulationPin extends InputPin implements PulseWithModulationPinI
     public function setValue($value)
     {
         $this->value = max(0, min(1, $value));
+
+        if($this->isActiveLow())
+        	$this->value = 1 - $this->value;
+
         exec(sprintf("gpio -g pwm %d %.0f", $this->getPinNumber(), $this->value * 1023));
     }
 }

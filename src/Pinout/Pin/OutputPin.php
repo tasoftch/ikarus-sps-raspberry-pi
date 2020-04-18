@@ -39,7 +39,11 @@ class OutputPin extends InputPin implements OutputPinInterface
 {
     public function setValue($value)
     {
-        $value = $value ? 1 : 0;
+    	if($this->isActiveLow())
+        	$value = $value ? 0 : 1;
+    	else
+			$value = $value ? 1 : 0;
+
         file_put_contents(sprintf(static::GPIO_VALUE_PATH, $this->getPinNumber()), $value);
     }
 }

@@ -37,32 +37,70 @@ namespace Ikarus\SPS\Raspberry\Pinout;
 
 abstract class AbstractPinout implements PinoutInterface
 {
+	/**
+	 * List all pin numbers the pinout wants to use as keys and the values must be an integer
+	 *
+	 * @var array
+	 * @see PinoutInterface::INPUT_RESISTOR_NONE
+	 * @see PinoutInterface::INPUT_RESISTOR_UP
+	 * @see PinoutInterface::INPUT_RESISTOR_DOWN
+	 */
     protected $inputPins = [
     ];
 
+	/**
+	 * List all pin numbers the pinout wants to use as keys and the values must be a boolean indicating pwm or not.
+	 *
+	 * @var array
+	 */
     protected $outputPins = [
     ];
 
+	/**
+	 * List all pin numbers that should be treated as active low.
+	 * 
+	 * @var array 
+	 */
+    protected $activeLowPins = [
+	];
 
-    public function yieldInputPin(int &$resistor)
+	/**
+	 * @inheritDoc
+	 */
+    public function yieldInputPin(int &$resistor, bool &$activeLow)
     {
         foreach($this->inputPins as $pin => $r) {
             if(NULL !== ($pin = $this->convertPin($pin))) {
                 $resistor = (int)$r;
+                $activeLow = $this->isActiveLow($pin);
                 yield $pin;
             }
         }
     }
 
-    public function yieldOutputPin(bool &$usePWM)
+	/**
+	 * @inheritDoc
+	 */
+    public function yieldOutputPin(bool &$usePWM, bool &$activeLow)
     {
         foreach($this->outputPins as $pin => $r) {
             if(NULL !== ($pin = $this->convertPin($pin))) {
                 $usePWM = (bool)$r;
+				$activeLow = $this->isActiveLow($pin);
                 yield $pin;
             }
         }
     }
+
+	/**
+	 * Called to determine if a pin should be treated as active low.
+	 *
+	 * @param int $pin
+	 * @return bool
+	 */
+    protected function isActiveLow(int $pin): bool {
+		return in_array($pin, $this->activeLowPins);
+	}
 
     /**
      * Converts the pin into bcm pinout scheme

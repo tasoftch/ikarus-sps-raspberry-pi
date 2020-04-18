@@ -38,9 +38,16 @@ namespace Ikarus\SPS\Raspberry\Pinout\Pin;
 interface InputPinInterface extends PinInterface
 {
     /**
-     * Gets the current pin value
+     * Gets the current pin value (including active low!)
      *
      * @return int
      */
     public function getValue();
+
+	/**
+	 * Returns whether the pin is active low ot not.
+	 *
+	 * @return bool
+	 */
+    public function isActiveLow(): bool;
 }

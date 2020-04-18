@@ -43,14 +43,18 @@ class InputPin implements InputPinInterface
      * @var int
      */
     private $pinNumber;
+    /** @var bool */
+    private $activeLow;
 
-    /**
-     * InputPin constructor.
-     * @param int $pinNumber
-     */
-    public function __construct(int $pinNumber)
+	/**
+	 * InputPin constructor.
+	 * @param int $pinNumber
+	 * @param bool $activeLow
+	 */
+    public function __construct(int $pinNumber, bool $activeLow = false)
     {
         $this->pinNumber = $pinNumber;
+        $this->activeLow = $activeLow;
     }
 
 
@@ -66,6 +70,16 @@ class InputPin implements InputPinInterface
      * @inheritDoc
      */
     public function getValue() {
-        return trim( file_get_contents(sprintf(static::GPIO_VALUE_PATH, $this->getPinNumber())) ) * 1;
+    	if($this->isActiveLow())
+			return trim( file_get_contents(sprintf(static::GPIO_VALUE_PATH, $this->getPinNumber())) ) ? 0 : 1;
+        return trim( file_get_contents(sprintf(static::GPIO_VALUE_PATH, $this->getPinNumber())) ) ? 1 : 0;
     }
+
+	/**
+	 * @return bool
+	 */
+	public function isActiveLow(): bool
+	{
+		return $this->activeLow;
+	}
 }

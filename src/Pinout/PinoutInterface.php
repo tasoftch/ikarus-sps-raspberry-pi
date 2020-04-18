@@ -44,21 +44,24 @@ namespace Ikarus\SPS\Raspberry\Pinout;
 interface PinoutInterface
 {
     const INPUT_RESISTOR_UP = 1;
+    const INPUT_RESISTOR_NONE = 0;
     const INPUT_RESISTOR_DOWN = -1;
 
-    /**
-     * Yields all input pins
-     *
-     * @param int $resistor
-     * @return \Generator
-     */
-    public function yieldInputPin(int &$resistor);
+	/**
+	 * Yields all input pins
+	 *
+	 * @param int $resistor
+	 * @param bool $activeLow
+	 * @return \Generator
+	 */
+    public function yieldInputPin(int &$resistor, bool &$activeLow);
 
-    /**
-     * Yields all output pins
-     *
-     * @param bool $usePWM
-     * @return \Generator
-     */
-    public function yieldOutputPin(bool &$usePWM);
+	/**
+	 * Yields all output pins
+	 *
+	 * @param bool $usePWM
+	 * @param bool $activeLow
+	 * @return \Generator
+	 */
+    public function yieldOutputPin(bool &$usePWM, bool &$activeLow);
 }

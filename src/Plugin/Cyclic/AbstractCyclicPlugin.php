@@ -58,13 +58,6 @@ abstract class AbstractCyclicPlugin extends \Ikarus\SPS\Plugin\Cyclic\AbstractCy
 
     const GPIO_EXPORTED_PIN = self::GPIO_PREFIX . "/gpio%d";
 
-    const PIN_MODE_INPUT = 1 << 0;
-    const PIN_MODE_RESISTOR_UP = 1<<1;
-    const PIN_MODE_RESISTOR_DOWN = 1<<2;
-
-    const PIN_MODE_OUTPUT = 1 << 4;
-    const PIN_MODE_OUTPUT_PWM = 1 << 5;
-
     private static $globallyUsedPins = [];
 
     private $usedPins = [];
@@ -101,9 +94,11 @@ abstract class AbstractCyclicPlugin extends \Ikarus\SPS\Plugin\Cyclic\AbstractCy
     public function setup()
     {
         $resistor = 0;
+        $activeLow = false;
+
         $pinout = $this->getPinout();
 
-        foreach($pinout->yieldInputPin($resistor) as $pin) {
+        foreach($pinout->yieldInputPin($resistor, $activeLow) as $pin) {
             if(isset(self::$globallyUsedPins[$pin])) {
                 $e = new OccupiedPinException("Input pin $pin is already in use");
                 $e->setPinNumber($pin);
@@ -116,19 +111,19 @@ abstract class AbstractCyclicPlugin extends \Ikarus\SPS\Plugin\Cyclic\AbstractCy
             file_put_contents(sprintf(self::GPIO_EXPORTED_PIN . "/direction", $pin), 'in');
 
             if($resistor == $pinout::INPUT_RESISTOR_UP) {
-                $this->usePin(new PullUpInputPin($pin));
+                $this->usePin(new PullUpInputPin($pin, $activeLow));
                 exec("gpio -g mode $pin up");
             }
             elseif($resistor == $pinout::INPUT_RESISTOR_DOWN) {
-                $this->usePin(new PullDownInputPin($pin));
+                $this->usePin(new PullDownInputPin($pin, $activeLow));
                 exec("gpio -g mode $pin down");
             } else
-                $this->usePin(new InputPin($pin));
+                $this->usePin(new InputPin($pin, $activeLow));
             $resistor = 0;
         }
 
         $pwm = false;
-        foreach($pinout->yieldOutputPin($pwm) as $pin) {
+        foreach($pinout->yieldOutputPin($pwm, $activeLow) as $pin) {
             if(isset(self::$globallyUsedPins[$pin])) {
                 $e = new OccupiedPinException("Output pin $pin is already in use");
                 $e->setPinNumber($pin);
@@ -136,7 +131,7 @@ abstract class AbstractCyclicPlugin extends \Ikarus\SPS\Plugin\Cyclic\AbstractCy
             }
 
             if($pwm) {
-                $this->usePin(new PulseWithModulationPin($pin));
+                $this->usePin(new PulseWithModulationPin($pin, $activeLow));
                 exec("gpio -g mode $pin pwm");
                 $pwm = false;
             } else {
@@ -144,7 +139,7 @@ abstract class AbstractCyclicPlugin extends \Ikarus\SPS\Plugin\Cyclic\AbstractCy
                     file_put_contents( self::GPIO_EXPORT, $pin );
                 }
                 file_put_contents(sprintf(self::GPIO_EXPORTED_PIN . "/direction", $pin), 'out');
-                $this->usePin(new OutputPin($pin));
+                $this->usePin(new OutputPin($pin, $activeLow));
             }
         }
     }
