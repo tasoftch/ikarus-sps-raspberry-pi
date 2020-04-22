@@ -61,9 +61,9 @@ class PiInfoPlugin extends AbstractCyclesDependentPlugin
 
 	private $usage, $lastUsage, $nullCount;
 
-	public function __construct(string $identifier = NULL)
+	public function __construct(int $cycleInterval = 1, string $identifier = NULL)
 	{
-		parent::__construct($identifier);
+		parent::__construct($cycleInterval, $identifier);
 		$this->piInstance = RaspberryPi::getBoard();
 
 		$str = file_get_contents('/proc/cpuinfo');
