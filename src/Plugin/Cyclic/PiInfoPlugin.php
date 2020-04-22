@@ -115,52 +115,63 @@ class PiInfoPlugin extends AbstractCyclesDependentPlugin
 
 	protected function updateInterval(CyclicPluginManagementInterface $pluginManagement)
 	{
-		$this->properties[ static::PROP_TEMPERATURE ] = $this->piInstance->getCpuTemperature();
+		if($this->_registered & static::PROP_TEMPERATURE) {
+			$this->properties[ static::PROP_TEMPERATURE ] = $this->piInstance->getCpuTemperature();
+		} else
+			$this->properties[ static::PROP_TEMPERATURE ] = false;
 
-		$iface = "";
-		$addresses = [];
+		if($this->_registered & static::PROP_ADDRESS) {
+			$iface = "";
+			$addresses = [];
 
-		foreach(preg_split("/(\n\r|\r|\n)/i", `ifconfig`) as $line) {
-			if(preg_match("/^([a-z0-9_\-]+):/i", $line, $ms)) {
-				$iface = $ms[1];
-				continue;
-			}
-
-			if(preg_match("/^\s*inet\s*(\d+\.\d+\.\d+\.\d+)/i", $line, $ms)) {
-				if($iface) {
-					$addresses[$iface] = $ms[1];
-					$iface = NULL;
+			foreach(preg_split("/(\n\r|\r|\n)/i", `ifconfig`) as $line) {
+				if(preg_match("/^([a-z0-9_\-]+):/i", $line, $ms)) {
+					$iface = $ms[1];
 					continue;
 				}
-			}
-		}
-		$this->properties[ static::PROP_ADDRESS ] = $addresses;
 
-
-
-		if(preg_match("/^cpu\s+([0-9\s]+)$/im", file_get_contents("/proc/stat"), $ms)) {
-			list($usr,/* Not used */, $sys, $idle) = preg_split("/\s+/", $ms[1]);
-			$used = $usr+$sys;
-
-			if($this->usage) {
-				list($ou, $oi) = $this->usage;
-
-				$du = $used-$ou;
-				$di = $idle-$oi;
-
-				$us = $du / ($du+$di) * 100;
-				if($us == 0 && $this->lastUsage != 0) {
-					$this->nullCount++;
-					if($this->nullCount < 20)
-						$us = $this->lastUsage;
-				} else {
-					$this->nullCount = 0;
+				if(preg_match("/^\s*inet\s*(\d+\.\d+\.\d+\.\d+)/i", $line, $ms)) {
+					if($iface) {
+						$addresses[$iface] = $ms[1];
+						$iface = NULL;
+						continue;
+					}
 				}
-
-				$this->properties[ static::PROP_CPU_USAGE ] = $us;
-				$this->lastUsage = $us;
 			}
-			$this->usage = [$used, $idle];
+			$this->properties[ static::PROP_ADDRESS ] = $addresses;
+		} else
+			$this->properties[ static::PROP_ADDRESS ] = false;
+
+		if($this->_registered & static::PROP_CPU_USAGE) {
+			if(preg_match("/^cpu\s+([0-9\s]+)$/im", file_get_contents("/proc/stat"), $ms)) {
+				list($usr,/* Not used */, $sys, $idle) = preg_split("/\s+/", $ms[1]);
+				$used = $usr+$sys;
+
+				if($this->usage) {
+					list($ou, $oi) = $this->usage;
+
+					$du = $used-$ou;
+					$di = $idle-$oi;
+
+					$us = $du / ($du+$di) * 100;
+					if($us == 0 && $this->lastUsage != 0) {
+						$this->nullCount++;
+						if($this->nullCount < 20)
+							$us = $this->lastUsage;
+					} else {
+						$this->nullCount = 0;
+					}
+
+					$this->properties[ static::PROP_CPU_USAGE ] = $us;
+					$this->lastUsage = $us;
+				}
+				$this->usage = [$used, $idle];
+			}
+		} else {
+			$this->lastUsage = $this->nullCount = $this->usage = NULL;
+			$this->properties[ static::PROP_CPU_USAGE ] = false;
 		}
+
+
 	}
 }
