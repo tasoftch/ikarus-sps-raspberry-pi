@@ -55,6 +55,8 @@ class PiInfoPlugin extends AbstractCyclesDependentPlugin
 	const PROP_ALL =                4095;
 
 	private $properties = [];
+	private $_registered = self::PROP_ALL;
+
 	private $piInstance;
 
 	private $usage, $lastUsage, $nullCount;
@@ -72,6 +74,43 @@ class PiInfoPlugin extends AbstractCyclesDependentPlugin
 		$this->properties[ static::PROP_MODEL ] = $this->piInstance->getModel();
 		$this->properties[ static::PROP_MODEL_NAME ] = $this->piInstance->getModelName();
 		$this->properties[ static::PROP_SERIAL ] = $this->piInstance->getSerial();
+	}
+
+	/**
+	 * Defines, which properties should be updated.
+	 * If no parameter specified, this method just returns the current flags.
+	 *
+	 * @param int|null $propertyFlags
+	 * @return int
+	 */
+	public function maintainUpToDate(int $propertyFlags = NULL): int {
+		if(NULL !== $propertyFlags)
+			$this->_registered = $propertyFlags;
+		return $this->_registered;
+	}
+
+	/**
+	 * Retrieves a property
+	 *
+	 * @param int $propertyFlag
+	 * @return mixed|null
+	 */
+	public function getProperty(int $propertyFlag) {
+		return $this->properties[$propertyFlag] ?? NULL;
+	}
+
+	/**
+	 * Retrieves multiple properties
+	 *
+	 * @param int|null $propertyFlags
+	 * @return array
+	 */
+	public function getProperties(int $propertyFlags = NULL): array {
+		if(NULL === $propertyFlags)
+			return $this->properties;
+		return array_filter($this->properties, function($flag) use ($propertyFlags) {
+			return $propertyFlags & $flag ? true : false;
+		}, ARRAY_FILTER_USE_KEY);
 	}
 
 	protected function updateInterval(CyclicPluginManagementInterface $pluginManagement)
