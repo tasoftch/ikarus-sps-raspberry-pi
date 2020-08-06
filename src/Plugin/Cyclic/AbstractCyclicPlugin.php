@@ -179,6 +179,22 @@ abstract class AbstractCyclicPlugin extends \Ikarus\SPS\Plugin\Cyclic\AbstractCy
         return $this->usedPins[$pin] ?? NULL;
     }
 
+	/**
+	 * @param $pin
+	 * @return InputPinInterface|null
+	 */
+    public function getInputPin($pin) {
+		return $this->usedPins[$pin] ?? NULL;
+	}
+
+	/**
+	 * @param $pin
+	 * @return OutputPinInterface|null
+	 */
+	public function getOutputPin($pin) {
+		return $this->usedPins[$pin] ?? NULL;
+	}
+
     /**
      * @return PinInterface[]
      */
