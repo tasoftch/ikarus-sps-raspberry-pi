@@ -202,7 +202,6 @@ abstract class AbstractCyclicPlugin extends \Ikarus\SPS\Plugin\Cyclic\AbstractCy
         return array_keys($this->usedPins);
     }
 
-
     /**
      * Gets all used input pins
      *
