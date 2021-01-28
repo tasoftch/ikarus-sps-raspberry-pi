@@ -1,45 +1,15 @@
 <?php
-/**
- * BSD 3-Clause License
- *
- * Copyright (c) 2019, TASoft Applications
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- *  Redistributions of source code must retain the above copyright notice, this
- *   list of conditions and the following disclaimer.
- *
- *  Redistributions in binary form must reproduce the above copyright notice,
- *   this list of conditions and the following disclaimer in the documentation
- *   and/or other materials provided with the distribution.
- *
- *  Neither the name of the copyright holder nor the names of its
- *   contributors may be used to endorse or promote products derived from
- *   this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- */
-
-namespace Ikarus\SPS\Raspberry\Plugin\Cyclic;
 
 
-use Ikarus\SPS\Plugin\Cyclic\AbstractCyclesDependentPlugin;
-use Ikarus\SPS\Plugin\Management\CyclicPluginManagementInterface;
-use Ikarus\SPS\Raspberry\RaspberryPi;
+namespace Ikarus\SPS\Raspberry\Plugin;
 
-class PiInfoPlugin extends AbstractCyclesDependentPlugin
+
+use Ikarus\Raspberry\RaspberryPiDevice;
+use Ikarus\SPS\Plugin\Interval\AbstractCycleIntervalPlugin;
+use Ikarus\SPS\Plugin\SetupPluginInterface;
+use Ikarus\SPS\Register\MemoryRegisterInterface;
+
+class RaspberryPiControlPlugin extends AbstractCycleIntervalPlugin implements SetupPluginInterface
 {
 	const PROP_MODEL =              1<<1;
 	const PROP_MODEL_NAME =         1<<2;
@@ -54,27 +24,38 @@ class PiInfoPlugin extends AbstractCyclesDependentPlugin
 
 	const PROP_ALL =                4095;
 
+	private $interval;
 	private $properties = [];
 	private $_registered = self::PROP_ALL;
 
 	private $piInstance;
 
-	private $usage, $lastUsage, $nullCount;
+	private $usage, $lastUsage, $nullCount, $writer;
 
-	public function __construct(int $cycleInterval = 1, string $identifier = NULL)
+	/**
+	 * RaspberryPiControlPlugin constructor.
+	 *
+	 * Define a writer to put the properties into memory management
+	 *
+	 * @param string $identifier
+	 * @param int $cycleInterval
+	 * @param callable|null $writer
+	 */
+	public function __construct(string $identifier, int $cycleInterval = 1, callable $writer = NULL)
 	{
-		parent::__construct($cycleInterval, $identifier);
-		$this->piInstance = RaspberryPi::getBoard();
-
-		$str = file_get_contents('/proc/cpuinfo');
-
-		$this->properties[ static::PROP_CORE_COUNT ] = preg_match_all("/processor\s*:\s*\d+/", $str);
-		$this->properties[ static::PROP_CPU_FREQUENCY ] = $this->piInstance->getCpuFrequency();
-		$this->properties[ static::PROP_HARDWARE ] = $this->piInstance->getHardware();
-		$this->properties[ static::PROP_MODEL ] = $this->piInstance->getModel();
-		$this->properties[ static::PROP_MODEL_NAME ] = $this->piInstance->getModelName();
-		$this->properties[ static::PROP_SERIAL ] = $this->piInstance->getSerial();
+		parent::__construct($identifier);
+		$this->interval = $cycleInterval;
+		$this->writer = $writer;
 	}
+
+	/**
+	 * @inheritDoc
+	 */
+	protected function getInterval(): int
+	{
+		return $this->interval;
+	}
+
 
 	/**
 	 * Defines, which properties should be updated.
@@ -113,7 +94,23 @@ class PiInfoPlugin extends AbstractCyclesDependentPlugin
 		}, ARRAY_FILTER_USE_KEY);
 	}
 
-	protected function updateInterval(CyclicPluginManagementInterface $pluginManagement)
+	public function setup()
+	{
+		$this->piInstance = RaspberryPiDevice::getDevice();
+
+		$str = file_get_contents('/proc/cpuinfo');
+		$this->properties[ static::PROP_CORE_COUNT ] = preg_match_all("/processor\s*:\s*\d+/", $str);
+		$this->properties[ static::PROP_CPU_FREQUENCY ] = $this->piInstance->getCpuFrequency();
+		$this->properties[ static::PROP_HARDWARE ] = $this->piInstance->getHardware();
+		$this->properties[ static::PROP_MODEL ] = $this->piInstance->getModel();
+		$this->properties[ static::PROP_MODEL_NAME ] = $this->piInstance->getModelName();
+		$this->properties[ static::PROP_SERIAL ] = $this->piInstance->getSerial();
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	protected function updateInterval(MemoryRegisterInterface $memoryRegister)
 	{
 		if($this->_registered & static::PROP_TEMPERATURE) {
 			$this->properties[ static::PROP_TEMPERATURE ] = $this->piInstance->getCpuTemperature();
@@ -172,6 +169,7 @@ class PiInfoPlugin extends AbstractCyclesDependentPlugin
 			$this->properties[ static::PROP_CPU_USAGE ] = false;
 		}
 
-
+		if($this->writer)
+			($this->writer)($memoryRegister, $this->properties);
 	}
 }
