@@ -17,9 +17,9 @@ interface PinArgumentInterface
 	 * If the pin holds an address, it can be obtained by this method.
 	 * Normally used by chips on i2c bus
 	 *
-	 * @return int
+	 * @return int|null
 	 */
-	public function getAddress(): int;
+	public function getAddress(): ?int;
 
 	/**
 	 * A direct callback to read/write to the pin contact.
