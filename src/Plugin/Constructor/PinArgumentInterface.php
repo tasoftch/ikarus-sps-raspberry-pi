@@ -22,6 +22,13 @@ interface PinArgumentInterface
 	public function getAddress(): ?int;
 
 	/**
+	 * Returns the options declared in the plugin descriptions construction class
+	 *
+	 * @return int
+	 */
+	public function getOptions(): int;
+
+	/**
 	 * A direct callback to read/write to the pin contact.
 	 *
 	 * @param null $value
